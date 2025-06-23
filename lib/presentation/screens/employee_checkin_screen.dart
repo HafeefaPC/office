@@ -17,30 +17,30 @@ class EmployeeCheckInScreen extends StatefulWidget {
 class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _codeController = TextEditingController();
-  
+
   String employeeName = "";
   String employeeEmail = "";
   String companyName = "";
   String verificationCode = "";
   String enteredCode = "";
-  
+
   bool isInside = false;
   bool isCodeSent = false;
   bool isVerified = false;
   bool isLoading = false;
-  
+
   Map<String, dynamic>? currentOffice;
   String? activeSessionId;
-  
+
   // Timer for work duration
   Timer? workTimer;
   Duration workDuration = Duration.zero;
-  
+
   @override
   void initState() {
     super.initState();
   }
-  
+
   @override
   void dispose() {
     workTimer?.cancel();
@@ -49,6 +49,7 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
   }
 
   Future<void> _loadOffice() async {
+
     final response = await Supabase.instance.client
         .from("offices")
         .select()
@@ -59,22 +60,25 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
       setState(() {
         currentOffice = response;
       });
+       print("Loaded office: $response");
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Company not found.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Company not found.")));
     }
   }
 
   bool _isEmployeeAuthorized() {
     if (currentOffice == null) return false;
-    
+
     final employees = currentOffice!['employees'] as List<dynamic>?;
+     print("Employees $employees");
     if (employees == null) return false;
-    
-    return employees.any((emp) => 
-      emp['name'].toString().toLowerCase() == employeeName.toLowerCase() &&
-      emp['email'].toString().toLowerCase() == employeeEmail.toLowerCase()
+
+    return employees.any(
+      (emp) =>
+          emp['name'].toString().toLowerCase() == employeeName.toLowerCase() &&
+          emp['email'].toString().toLowerCase() == employeeEmail.toLowerCase(),
     );
   }
 
@@ -84,26 +88,29 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
   }
 
   Future<void> _sendVerificationCode() async {
+    print("Sending verification code for $employeeName ($employeeEmail) to $companyName");
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       isLoading = true;
     });
-
+print("Loading office data...");
     try {
       await _loadOffice();
-      
+
       if (currentOffice == null) {
         setState(() {
           isLoading = false;
         });
         return;
       }
-
+print("Office loaded: ${currentOffice!['name']}");
       if (!_isEmployeeAuthorized()) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Employee not authorized for this office. Please contact admin."),
+            content: Text(
+              "Employee not authorized for this office. Please contact admin.",
+            ),
           ),
         );
         setState(() {
@@ -114,7 +121,8 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
 
       // Generate verification code
       verificationCode = _generateVerificationCode();
-      
+      print("Generated verification code: $verificationCode");
+
       // Send email (you'll need to implement EmailService)
       final emailSent = await EmailService().sendVerificationEmail(
         fromEmail: currentOffice!['office_email'],
@@ -137,7 +145,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Failed to send verification code. Please try again."),
+            content: Text(
+              "Failed to send verification code. Please try again.",
+            ),
           ),
         );
         setState(() {
@@ -145,9 +155,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
         });
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $error")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $error")));
       setState(() {
         isLoading = false;
       });
@@ -164,7 +174,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
     if (!isValidCode) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Invalid or expired verification code. Please try again."),
+          content: Text(
+            "Invalid or expired verification code. Please try again.",
+          ),
         ),
       );
       return;
@@ -201,7 +213,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
       if (!isNowInside) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("You are not within the office premises. Please get closer to the office."),
+            content: Text(
+              "You are not within the office premises. Please get closer to the office.",
+            ),
           ),
         );
         setState(() {
@@ -219,7 +233,7 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
           .eq("employee_email", employeeEmail)
           .eq("office_id", currentOffice!['id'])
           .filter('checkout_time', 'is', null)
-          .maybeSingle();
+          .single();
 
       if (existingCheckin != null) {
         activeSessionId = existingCheckin['id'];
@@ -243,7 +257,7 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
 
         activeSessionId = response['id'];
         workDuration = Duration.zero;
-        
+
         NotificationService().showNotification(
           "Checked In Successfully",
           "$employeeName checked in to ${currentOffice!['name']}.",
@@ -255,13 +269,12 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
         isVerified = true;
         isLoading = false;
       });
-      
-      _startWorkTimer();
 
+      _startWorkTimer();
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error during check-in: $error")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error during check-in: $error")));
       setState(() {
         isLoading = false;
       });
@@ -285,7 +298,7 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
 
     try {
       final now = DateTime.now().toIso8601String();
-      
+
       await Supabase.instance.client
           .from("checkins")
           .update({"checkout_time": now})
@@ -303,10 +316,10 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
         isLoading = false;
         workDuration = Duration.zero;
       });
-      
+
       workTimer?.cancel();
       activeSessionId = null;
-      
+
       // Reset form
       _formKey.currentState!.reset();
       _codeController.clear();
@@ -315,11 +328,10 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
       companyName = "";
       verificationCode = "";
       enteredCode = "";
-
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error during check-out: $error")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error during check-out: $error")));
       setState(() {
         isLoading = false;
       });
@@ -354,18 +366,15 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        const Icon(
-                          Icons.work,
-                          size: 50,
-                          color: Colors.green,
-                        ),
+                        const Icon(Icons.work, size: 50, color: Colors.green),
                         const SizedBox(height: 10),
                         Text(
                           "You're at work!",
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.green.shade800,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: Colors.green.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                         const SizedBox(height: 10),
                         Text(
@@ -413,7 +422,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.logout),
                           label: const Text("Check Out"),
@@ -440,8 +451,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                         ),
                         onChanged: (val) => companyName = val,
                         enabled: !isCodeSent,
-                        validator: (val) =>
-                            val == null || val.isEmpty ? "Enter company name" : null,
+                        validator: (val) => val == null || val.isEmpty
+                            ? "Enter company name"
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -451,8 +463,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                         ),
                         onChanged: (val) => employeeName = val,
                         enabled: !isCodeSent,
-                        validator: (val) =>
-                            val == null || val.isEmpty ? "Enter your name" : null,
+                        validator: (val) => val == null || val.isEmpty
+                            ? "Enter your name"
+                            : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -464,13 +477,21 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                         onChanged: (val) => employeeEmail = val,
                         enabled: !isCodeSent,
                         validator: (val) {
-                          if (val == null || val.isEmpty) return "Enter your email";
-                          if (!val.contains('@')) return "Enter valid email";
+                          if (val == null || val.isEmpty) {
+                            return "Enter your email";
+                          }
+                          final emailRegex = RegExp(
+                            r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
+                          );
+                          if (!emailRegex.hasMatch(val)) {
+                            return "Enter a valid email address";
+                          }
                           return null;
                         },
                       ),
+
                       const SizedBox(height: 20),
-                      
+
                       if (!isCodeSent) ...[
                         SizedBox(
                           width: double.infinity,
@@ -480,7 +501,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.send),
                             label: const Text("Send Verification Code"),
@@ -511,7 +534,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.check_circle),
                             label: const Text("Verify & Check In"),
@@ -539,9 +564,9 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 30),
-              
+
               // Status Indicator
               Card(
                 color: isInside ? Colors.green.shade50 : Colors.grey.shade50,
@@ -557,11 +582,15 @@ class _EmployeeCheckInScreenState extends State<EmployeeCheckInScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        isInside ? "You're inside the office" : "You're outside the office",
+                        isInside
+                            ? "You're inside the office"
+                            : "You're outside the office",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: isInside ? Colors.green.shade800 : Colors.grey.shade600,
+                          color: isInside
+                              ? Colors.green.shade800
+                              : Colors.grey.shade600,
                         ),
                       ),
                     ],
